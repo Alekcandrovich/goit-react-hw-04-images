@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React, { useState, useEffect } from 'react';
 import Notiflix from 'notiflix';
 import Loader from './Loader';
 import Searchbar from './Searchbar';
@@ -8,35 +8,25 @@ import Button from './Button';
 import Modal from './Modal';
 import { fetchImages } from '../servise/api';
 
-class App extends Component {
-  state = {
-    searchQuery: '',
-    page: 1,
-    totalHits: 0,
-    isLoading: false,
-    images: [],
-    showModal: false,
-    modalImageUrl: '',
-  };
+const App = () => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalHits, setTotalHits] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [images, setImages] = useState([]);
+  const [showModal, setShowModal] = useState(false);
+  const [modalImageUrl, setModalImageUrl] = useState('');
 
-  componentDidUpdate(prevProps, prevState) {
-    const { page, searchQuery } = this.state;
-    if (page !== prevState.page || searchQuery !== prevState.searchQuery) {
-      this.fetchImages();
-    }
-  }
-
-  fetchImages = async () => {
-    this.setState({ isLoading: true });
+  useEffect(() => {
+    if (!searchQuery) return;
+      const fetchImagesApi = async () => {
+        setIsLoading(true);
     try {
-      const { totalHits, hits } = await fetchImages(
-        this.state.searchQuery,
-        this.state.page
-      );
+      const { totalHits, hits } = await fetchImages(searchQuery, page);
 
       if (!hits.length) {
         Notiflix.Notify.failure(
-          'An error occurred while fetching images Please try again later.'
+          'An error occurred while fetching images. Please try again later.'
         );
         return;
       }
@@ -47,101 +37,97 @@ class App extends Component {
         );
         return;
       }
-      
+
       const imagesProp = hits.map(
-        ({ id, tags, webformatURL, largeImageURL }) => ({
-          id,
-          tags,
-          webformatURL,
-          largeImageURL,
+      ({
+        id,
+        tags,
+        webformatURL,
+        largeImageURL,
+      }) => ({
+        id,
+        tags,
+        webformatURL,
+        largeImageURL,
         })
       );
-    
-      this.setState(prevState => ({
-        totalHits,
-        images: [...prevState.images, ...imagesProp],
-      }));
-    } catch (error) {
+
+      setTotalHits(totalHits);
+      setImages(prevImages => [...prevImages, ...imagesProp]);
+      } catch (error) {
       Notiflix.Notify.failure(
-        'An error occurred while fetching images Please try again later.'
+        'An error occurred while fetching images. Please try again later.'
       );
-    } finally {
-      this.setState({ isLoading: false });
-    }
-  };
+      } finally {
+      setIsLoading(false);
+      }
+    };
 
-  onSearchSubmit = async searchQuery => {
-    this.setState({
-      searchQuery,
-      page: 1,
-      totalHits: 0,
-      images: [],
-    });
+      fetchImagesApi();
+    }, [page, searchQuery]);
 
+  const onSearchSubmit = async query => {
+    setSearchQuery(query);
+    setPage(1);
+    setTotalHits(0);
+    setImages([]);
     try {
-      const { totalHits } = await fetchImages(searchQuery, 1);
+      const { totalHits } = await fetchImages(query, 1);
       Notiflix.Notify.success(`"Hooray! We found ${totalHits} images."`);
-      this.setState({ totalHits });
+      setTotalHits(totalHits);
     } catch (error) {
-      Notiflix.Notify.failure(
-        'An error occurred while fetching images Please try again later.'
-      );
+      Notiflix.Notify.failure('An error occurred while fetching images. Please try again later.');
     }
   };
 
-  onLoadMoreClick = async () => {
-    this.setState(prevState => ({ page: prevState.page + 1 }));
+  const onLoadMoreClick = () => {
+    setPage(prevPage => prevPage + 1);
   };
 
-  onImageClick = modalImageUrl => {
-    this.setState({ showModal: true, modalImageUrl });
+  const onImageClick = imgUrl => {
+    setShowModal(true);
+    setModalImageUrl(imgUrl);
   };
 
-  onCloseModal = () => {
-    this.setState({ showModal: false, modalImageUrl: '' });
+  const onCloseModal = () => {
+    setShowModal(false);
+    setModalImageUrl('');
   };
 
-  render() {
-    const { isLoading, images, showModal, modalImageUrl, totalHits } =
-      this.state;
-
-    return (
-      <div>
-        <Searchbar onSubmit={this.onSearchSubmit} />
-
-        <ImageGallery>
-          {images.map(image => (
-            <ImageGalleryItem
-              key={image.id}
-              webformatURL={image.webformatURL}
-              tags={image.tags}
-              views={image.views}
-              largeImageURL={image.largeImageURL}
-              onImageClick={() => this.onImageClick(image.largeImageURL)}
-            />
-          ))}
-        </ImageGallery>
-
-        {isLoading && (
-          <Loader
-            type="ThreeDots"
-            color="#00BFFF"
-            height={100}
-            width={100}
-            className="loader_center loader_overlay"
+  return (
+    <div>
+      <Searchbar onSubmit={onSearchSubmit} />
+      <ImageGallery>
+        {images.map(image => (
+          <ImageGalleryItem
+            key={image.id}
+            webformatURL={image.webformatURL}
+            tags={image.tags}
+            largeImageURL={image.largeImageURL}
+            onImageClick={() => onImageClick(image.largeImageURL)}
+            imageId={image.id}
           />
-        )}
-        {!isLoading && totalHits !== images.length && (
-          <Button onClick={this.onLoadMoreClick}>Load more</Button>
-        )}
-        {showModal && (
-          <Modal onCloseModal={this.onCloseModal}>
-            <img src={modalImageUrl} alt="modal" />
-          </Modal>
-        )}
-      </div>
-    );
-  }
-}
+        ))}
+      </ImageGallery>
+        {isLoading && (
+        <Loader
+          type="ThreeDots"
+          color="#00BFFF"
+          height={100}
+          width={100}
+          className="loader_center loader_overlay"
+        />
+      )}
+      {!isLoading && totalHits !== images.length && (
+        <Button onClick={onLoadMoreClick}>Load more</Button>
+      )}
+      {showModal && (
+        <Modal onCloseModal={onCloseModal}>
+          <img src={modalImageUrl} alt="modal" />
+        </Modal>
+      )}
+    </div>
+  );
+};
 
 export default App;
