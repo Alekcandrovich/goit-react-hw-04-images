@@ -24,6 +24,10 @@ const App = () => {
     try {
       const { totalHits, hits } = await fetchImages(searchQuery, page);
 
+      if (page === 1) {
+        Notiflix.Notify.success(`"Hooray! We found ${totalHits} images."`);
+      }
+      
       if (!hits.length) {
         Notiflix.Notify.failure(
           'An error occurred while fetching images. Please try again later.'
@@ -71,13 +75,6 @@ const App = () => {
     setPage(1);
     setTotalHits(0);
     setImages([]);
-    try {
-      const { totalHits } = await fetchImages(query, 1);
-      Notiflix.Notify.success(`"Hooray! We found ${totalHits} images."`);
-      setTotalHits(totalHits);
-    } catch (error) {
-      Notiflix.Notify.failure('An error occurred while fetching images. Please try again later.');
-    }
   };
 
   const onLoadMoreClick = () => {
